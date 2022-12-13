@@ -23,13 +23,13 @@
 new(Dir) ->
     file:delete(filename:join(Dir, ?FILENAME)),
     Tid = ets:new(?MSG_LOC_NAME, [set, public, {keypos, #msg_location.msg_id}]),
-    #state { table = Tid, dir = Dir }.
+    #state { table = Tid, dir = list_to_binary(Dir) }.
 
 recover(Dir) ->
     Path = filename:join(Dir, ?FILENAME),
     case ets:file2tab(Path) of
         {ok, Tid}  -> file:delete(Path),
-                      {ok, #state { table = Tid, dir = Dir }};
+                      {ok, #state { table = Tid, dir = list_to_binary(Dir) }};
         Error      -> Error
     end.
 
@@ -64,7 +64,8 @@ clean_up_temporary_reference_count_entries_without_file(State) ->
     ets:select_delete(State #state.table, [{MatchHead, [], [true]}]),
     ok.
 
-terminate(#state { table = MsgLocations, dir = Dir }) ->
+terminate(#state { table = MsgLocations, dir = DirBin }) ->
+    Dir = binary_to_list(DirBin),
     case ets:tab2file(MsgLocations, filename:join(Dir, ?FILENAME),
                       [{extended_info, [object_count]}]) of
         ok           -> ok;

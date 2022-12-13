@@ -149,7 +149,8 @@
                       file_handle_cache  :: map(),
                       index_state        :: any(),
                       index_module       :: atom(),
-                      dir                :: file:filename(),
+                      %% Stored as binary() as opposed to file:filename() to save memory.
+                      dir                :: binary(),
                       gc_pid             :: pid(),
                       file_handles_ets   :: ets:tid(),
                       file_summary_ets   :: ets:tid(),
@@ -466,7 +467,7 @@ client_init(Server, Ref, MsgOnDiskFun, CloseFDsFun) when is_pid(Server); is_atom
                       file_handle_cache  = #{},
                       index_state        = IState,
                       index_module       = IModule,
-                      dir                = Dir,
+                      dir                = list_to_binary(Dir),
                       gc_pid             = GCPid,
                       file_handles_ets   = FileHandlesEts,
                       file_summary_ets   = FileSummaryEts,
@@ -1509,7 +1510,8 @@ get_read_handle(FileNum, State = #msstate { file_handle_cache = FHC,
 get_read_handle(FileNum, FHC, Dir) ->
     case maps:find(FileNum, FHC) of
         {ok, Hdl} -> {Hdl, FHC};
-        error     -> {ok, Hdl} = open_file(Dir, filenum_to_name(FileNum),
+        error     -> {ok, Hdl} = open_file(rabbit_data_coercion:to_list(Dir),
+                                           filenum_to_name(FileNum),
                                            ?READ_MODE),
                      {Hdl, maps:put(FileNum, Hdl, FHC)}
     end.
