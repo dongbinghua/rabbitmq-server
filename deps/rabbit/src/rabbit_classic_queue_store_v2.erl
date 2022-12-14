@@ -118,7 +118,7 @@ init(#resource{ virtual_host = VHost } = Name) ->
     ?DEBUG("~0p", [Name]),
     VHostDir = rabbit_vhost:msg_store_dir_path(VHost),
     Dir = rabbit_classic_queue_index_v2:queue_dir(VHostDir, Name),
-    #qs{dir = list_to_binary(Dir)}.
+    #qs{dir = rabbit_file:filename_to_binary(Dir)}.
 
 -spec terminate(State) -> State when State::state().
 
@@ -571,4 +571,5 @@ check_crc32() ->
 %% Same implementation as rabbit_classic_queue_index_v2:segment_file/2,
 %% but with a different state record.
 segment_file(Segment, #qs{ dir = Dir }) ->
-    filename:join(binary_to_list(Dir), integer_to_list(Segment) ++ ?SEGMENT_EXTENSION).
+    filename:join(rabbit_file:binary_to_filename(Dir),
+                  integer_to_list(Segment) ++ ?SEGMENT_EXTENSION).

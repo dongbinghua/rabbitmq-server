@@ -467,7 +467,7 @@ client_init(Server, Ref, MsgOnDiskFun, CloseFDsFun) when is_pid(Server); is_atom
                       file_handle_cache  = #{},
                       index_state        = IState,
                       index_module       = IModule,
-                      dir                = list_to_binary(Dir),
+                      dir                = rabbit_file:filename_to_binary(Dir),
                       gc_pid             = GCPid,
                       file_handles_ets   = FileHandlesEts,
                       file_summary_ets   = FileSummaryEts,
@@ -1510,11 +1510,16 @@ get_read_handle(FileNum, State = #msstate { file_handle_cache = FHC,
 get_read_handle(FileNum, FHC, Dir) ->
     case maps:find(FileNum, FHC) of
         {ok, Hdl} -> {Hdl, FHC};
-        error     -> {ok, Hdl} = open_file(rabbit_data_coercion:to_list(Dir),
+        error     -> {ok, Hdl} = open_file(to_filename(Dir),
                                            filenum_to_name(FileNum),
                                            ?READ_MODE),
                      {Hdl, maps:put(FileNum, Hdl, FHC)}
     end.
+
+to_filename(Name) when is_list(Name) ->
+    Name;
+to_filename(Bin) when is_binary(Bin) ->
+    rabbit_file:binary_to_filename(Bin).
 
 preallocate(Hdl, FileSizeLimit, FinalPos) ->
     {ok, FileSizeLimit} = file_handle_cache:position(Hdl, FileSizeLimit),

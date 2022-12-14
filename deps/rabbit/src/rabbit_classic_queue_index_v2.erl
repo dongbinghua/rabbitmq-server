@@ -198,7 +198,7 @@ init1(Name, Dir, OnSyncFun, OnSyncMsgFun) ->
     ensure_queue_name_stub_file(Name, Dir),
     #qi{
         queue_name = Name,
-        dir = list_to_binary(Dir),
+        dir = rabbit_file:filename_to_binary(Dir),
         on_sync = OnSyncFun,
         on_sync_msg = OnSyncMsgFun
     }.
@@ -218,7 +218,7 @@ reset_state(State = #qi{ queue_name     = Name,
                          on_sync_msg    = OnSyncMsgFun }) ->
     ?DEBUG("~0p", [State]),
     delete_and_terminate(State),
-    init1(Name, binary_to_list(Dir), OnSyncFun, OnSyncMsgFun).
+    init1(Name, rabbit_file:binary_to_filename(Dir), OnSyncFun, OnSyncMsgFun).
 
 -spec recover(rabbit_amqqueue:name(), shutdown_terms(), boolean(),
                     contains_predicate(),
@@ -280,7 +280,7 @@ recover(#resource{ virtual_host = VHost, name = QueueName } = Name, Terms,
 
 recover_segments(State0 = #qi { queue_name = Name, dir = DirBin }, Terms, IsMsgStoreClean,
                  ContainsCheckFun, OnSyncFun, OnSyncMsgFun, CountersRef, Context) ->
-    Dir = binary_to_list(DirBin),
+    Dir = rabbit_file:binary_to_filename(DirBin),
     SegmentFiles = rabbit_file:wildcard(".*\\" ++ ?SEGMENT_EXTENSION, Dir),
     State = case SegmentFiles of
         %% No segments found.
@@ -483,7 +483,7 @@ recover_index_v1_dirty(State0 = #qi{ queue_name = Name }, Terms, IsMsgStoreClean
 %% were dropped during the v1 index recovery.
 recover_index_v1_common(State0 = #qi{ queue_name = Name, dir = DirBin },
                         V1State, CountersRef) ->
-    Dir = binary_to_list(DirBin),
+    Dir = rabbit_file:binary_to_filename(DirBin),
     %% Use a temporary per-queue store state to store embedded messages.
     StoreState0 = rabbit_classic_queue_store_v2:init(Name),
     %% Go through the v1 index and publish messages to the v2 index.
@@ -542,7 +542,8 @@ terminate(VHost, Terms, State0 = #qi { dir = Dir,
     end, OpenFds),
     file_handle_cache:release_reservation(),
     %% Write recovery terms for faster recovery.
-    rabbit_recovery_terms:store(VHost, filename:basename(binary_to_list(Dir)),
+    rabbit_recovery_terms:store(VHost,
+                                filename:basename(rabbit_file:binary_to_filename(Dir)),
                                 [{v2_index_state, {?VERSION, Segments}} | Terms]),
     State#qi{ segments = #{},
               fds = #{} }.
@@ -558,7 +559,7 @@ delete_and_terminate(State = #qi { dir = Dir,
     end, OpenFds),
     file_handle_cache:release_reservation(),
     %% Erase the data on disk.
-    ok = erase_index_dir(binary_to_list(Dir)),
+    ok = erase_index_dir(rabbit_file:binary_to_filename(Dir)),
     State#qi{ segments = #{},
               fds = #{} }.
 
@@ -1280,7 +1281,8 @@ queue_name_to_dir_name(#resource { kind = queue,
     rabbit_misc:format("~.36B", [Num]).
 
 segment_file(Segment, #qi{ dir = Dir }) ->
-    filename:join(binary_to_list(Dir), integer_to_list(Segment) ++ ?SEGMENT_EXTENSION).
+    filename:join(rabbit_file:binary_to_filename(Dir),
+                  integer_to_list(Segment) ++ ?SEGMENT_EXTENSION).
 
 highest_continuous_seq_id([SeqId|Tail], EndSeqId)
         when (1 + SeqId) =:= EndSeqId ->
